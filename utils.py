@@ -1,4 +1,3 @@
-
 import os
 import cv2
 import numpy as np
@@ -22,24 +21,36 @@ def draw_wireframe_overlay(image, proj_verts, faces, color=(0, 255, 0), thicknes
     """
     CPU-only mesh overlay renderer using OpenCV.
     Draws the projected triangle edges onto the 2D image.
+    Handles NaN/Inf values that may result from optimization divergence.
     """
     overlay = image.copy()
-    proj_verts = proj_verts.detach().cpu().numpy()[0].astype(np.int32)
+    proj_verts_np = proj_verts.detach().cpu().numpy()[0]
+    
+    # Filter out NaN and Inf values
+    valid_mask = np.isfinite(proj_verts_np).all(axis=1)
+    if not valid_mask.any():
+        logging.warning("No valid projected vertices found (all NaN/Inf). Returning original image.")
+        return image
+    
+    # Clip vertices to valid image bounds
+    proj_verts_np = np.clip(proj_verts_np, 0, [image.shape[1]-1, image.shape[0]-1])
+    proj_verts = proj_verts_np.astype(np.int32)
+    
     faces = faces.detach().cpu().numpy()
     
     # Extract edges
     edges = set()
     for face in faces:
-        edges.add(tuple(sorted((face[0], face[1]))))
-        edges.add(tuple(sorted((face[1], face[2]))))
-        edges.add(tuple(sorted((face[2], face[0]))))
+        # Only draw edges where all vertices are valid
+        if valid_mask[face[0]] and valid_mask[face[1]] and valid_mask[face[2]]:
+            edges.add(tuple(sorted((face[0], face[1]))))
+            edges.add(tuple(sorted((face[1], face[2]))))
+            edges.add(tuple(sorted((face[2], face[0]))))
         
     for edge in edges:
         pt1 = tuple(proj_verts[edge[0]])
         pt2 = tuple(proj_verts[edge[1]])
-        # Basic bounds check to prevent cv2 drawing crash
-        if 0 <= pt1[0] < image.shape[1]*2 and 0 <= pt1[1] < image.shape[0]*2:
-            cv2.line(overlay, pt1, pt2, color, thickness)
+        cv2.line(overlay, pt1, pt2, color, thickness)
             
     # Blend with original image
     result = cv2.addWeighted(image, 0.4, overlay, 0.6, 0)
