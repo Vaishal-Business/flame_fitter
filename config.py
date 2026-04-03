@@ -9,7 +9,7 @@ DEVICE = torch.device("cpu")
 # ==========================================
 # FLAME MODEL PARAMETERS
 # ==========================================
-FLAME_MODEL_PATH = "models/generic_model.pkl" # Path to downloaded FLAME model
+FLAME_MODEL_PATH = "/content/drive/MyDrive/FLAME_202/flame2023_Open.pkl" # Path to downloaded FLAME model
 NUM_SHAPE_PARAMS = 100
 NUM_EXP_PARAMS = 50
 
